@@ -1,0 +1,319 @@
+# 五子棋游戏 HTML 实现
+
+以下是一个完整的五子棋游戏 HTML 实现，所有代码都在一个 HTML 文件中：
+
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋游戏</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .game-info {
+            margin-bottom: 20px;
+            font-size: 18px;
+            color: #555;
+        }
+        
+        .game-container {
+            position: relative;
+        }
+        
+        #board {
+            background-color: #dcb35c;
+            border: 2px solid #8d6e3a;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .controls {
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #winner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 24px;
+            display: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <h1>五子棋游戏</h1>
+    <div class="game-info" id="current-player">当前玩家: 黑棋</div>
+    
+    <div class="game-container">
+        <canvas id="board" width="450" height="450"></canvas>
+        <div id="winner"></div>
+    </div>
+    
+    <div class="controls">
+        <button id="restart">重新开始</button>
+        <button id="undo">悔棋</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('board');
+            const ctx = canvas.getContext('2d');
+            const currentPlayerDisplay = document.getElementById('current-player');
+            const restartButton = document.getElementById('restart');
+            const undoButton = document.getElementById('undo');
+            const winnerDisplay = document.getElementById('winner');
+            
+            const GRID_SIZE = 15; // 15x15 的棋盘
+            const CELL_SIZE = canvas.width / (GRID_SIZE + 1);
+            const PIECE_RADIUS = CELL_SIZE * 0.4;
+            
+            let board = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+            let currentPlayer = 1; // 1 为黑棋，2 为白棋
+            let gameOver = false;
+            let moveHistory = [];
+            
+            // 初始化游戏
+            function initGame() {
+                board = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+                currentPlayer = 1;
+                gameOver = false;
+                moveHistory = [];
+                currentPlayerDisplay.textContent = '当前玩家: 黑棋';
+                winnerDisplay.style.display = 'none';
+                drawBoard();
+            }
+            
+            // 绘制棋盘
+            function drawBoard() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制棋盘背景
+                ctx.fillStyle = '#dcb35c';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制网格线
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    // 横线
+                    ctx.beginPath();
+                    ctx.moveTo(CELL_SIZE, CELL_SIZE * (i + 1));
+                    ctx.lineTo(CELL_SIZE * GRID_SIZE, CELL_SIZE * (i + 1));
+                    ctx.stroke();
+                    
+                    // 竖线
+                    ctx.beginPath();
+                    ctx.moveTo(CELL_SIZE * (i + 1), CELL_SIZE);
+                    ctx.lineTo(CELL_SIZE * (i + 1), CELL_SIZE * GRID_SIZE);
+                    ctx.stroke();
+                }
+                
+                // 绘制天元和星位
+                const starPoints = [3, 7, 11]; // 星位坐标
+                for (let i of starPoints) {
+                    for (let j of starPoints) {
+                        drawStarPoint(i, j);
+                    }
+                }
+                
+                // 绘制棋子
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    for (let j = 0; j < GRID_SIZE; j++) {
+                        if (board[i][j] === 1) {
+                            drawPiece(j, i, 'black');
+                        } else if (board[i][j] === 2) {
+                            drawPiece(j, i, 'white');
+                        }
+                    }
+                }
+            }
+            
+            // 绘制星位点
+            function drawStarPoint(x, y) {
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(
+                    CELL_SIZE * (x + 1),
+                    CELL_SIZE * (y + 1),
+                    CELL_SIZE * 0.1,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+            
+            // 绘制棋子
+            function drawPiece(x, y, color) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(
+                    CELL_SIZE * (x + 1),
+                    CELL_SIZE * (y + 1),
+                    PIECE_RADIUS,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // 为白棋添加边框
+                if (color === 'white') {
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+            
+            // 检查是否获胜
+            function checkWin(x, y) {
+                const directions = [
+                    [1, 0],   // 水平
+                    [0, 1],    // 垂直
+                    [1, 1],     // 对角线
+                    [1, -1]     // 反对角线
+                ];
+                
+                for (const [dx, dy] of directions) {
+                    let count = 1;
+                    
+                    // 正向检查
+                    for (let i = 1; i < 5; i++) {
+                        const nx = x + dx * i;
+                        const ny = y + dy * i;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && board[ny][nx] === currentPlayer) {
+                            count++;
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    // 反向检查
+                    for (let i = 1; i < 5; i++) {
+                        const nx = x - dx * i;
+                        const ny = y - dy * i;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && board[ny][nx] === currentPlayer) {
+                            count++;
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    if (count >= 5) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            
+            // 处理点击事件
+            function handleClick(event) {
+                if (gameOver) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.round((event.clientX - rect.left - CELL_SIZE) / CELL_SIZE);
+                const y = Math.round((event.clientY - rect.top - CELL_SIZE) / CELL_SIZE);
+                
+                if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE && board[y][x] === 0) {
+                    board[y][x] = currentPlayer;
+                    moveHistory.push({x, y, player: currentPlayer});
+                    
+                    if (checkWin(x, y)) {
+                        gameOver = true;
+                        const winner = currentPlayer === 1 ? '黑棋' : '白棋';
+                        winnerDisplay.textContent = `${winner}获胜!`;
+                        winnerDisplay.style.display = 'block';
+                    } else {
+                        currentPlayer = currentPlayer === 1 ? 2 : 1;
+                        currentPlayerDisplay.textContent = `当前玩家: ${currentPlayer === 1 ? '黑棋' : '白棋'}`;
+                    }
+                    
+                    drawBoard();
+                }
+            }
+            
+            // 悔棋功能
+            function undoMove() {
+                if (gameOver || moveHistory.length === 0) return;
+                
+                const lastMove = moveHistory.pop();
+                board[lastMove.y][lastMove.x] = 0;
+                currentPlayer = lastMove.player;
+                currentPlayerDisplay.textContent = `当前玩家: ${currentPlayer === 1 ? '黑棋' : '白棋'}`;
+                drawBoard();
+            }
+            
+            // 事件监听
+            canvas.addEventListener('click', handleClick);
+            restartButton.addEventListener('click', initGame);
+            undoButton.addEventListener('click', undoMove);
+            
+            // 初始化游戏
+            initGame();
+        });
+    </script>
+</body>
+</html>
+```
+
+## 游戏功能说明
+
+1. **基本规则**：
+   - 15×15 标准棋盘
+   - 黑棋先行，轮流落子
+   - 先形成五子连珠者获胜
+
+2. **游戏功能**：
+   - 显示当前玩家
+   - 重新开始游戏
+   - 悔棋功能
+   - 获胜提示
+
+3. **界面特点**：
+   - 传统棋盘样式
+   - 清晰的棋子显示
+   - 响应式设计
+
+## 使用方法
+
+1. 将上述代码复制到一个文本文件中
+2. 保存为 `.html` 后缀的文件（例如 `gomoku.html`）
+3. 用浏览器打开该文件即可开始游戏
+
+您可以根据需要调整棋盘大小、颜色等参数来自定义游戏外观。
