@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown到HTML转换测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-case { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .passed { background-color: #d4edda; border-color: #c3e6cb; }
+        .failed { background-color: #f8d7da; border-color: #f5c6cb; }
+        .markdown { background-color: #f8f9fa; padding: 10px; border-radius: 3px; }
+        .html { background-color: #e9ecef; padding: 10px; border-radius: 3px; }
+        .expected { background-color: #fff3cd; padding: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Markdown到HTML转换测试</h1>
+    
+    <div id="test-results"></div>
+
+    <script>
+        // 引入Markdown转换函数
+        /**
+         * 将Markdown文本转换为HTML格式
+         * 功能与Python的markdown2.markdown()相同
+         * @param {string} data1 - Markdown格式的字符串
+         * @returns {string} HTML格式的字符串
+         */
+        function markdownToHtml(data1) {
+            if (typeof data1 !== 'string') {
+                throw new Error('输入必须是字符串类型');
+            }
+            
+            if (data1.trim() === '') {
+                return '';
+            }
+            
+            // 实现Markdown到HTML的转换逻辑
+            let html = data1;
+            
+            // 1. 处理标题 (#, ##, ###, etc.)
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+            html = html.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
+            html = html.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
+            
+            // 2. 处理粗体 (**text** 或 __text__)
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+            
+            // 3. 处理斜体 (*text* 或 _text_)
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+            
+            // 4. 处理删除线 (~~text~~)
+            html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
+            
+            // 5. 处理代码块 (```code```)
+            html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            
+            // 6. 处理行内代码 (`code`)
+            html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+            
+            // 7. 处理块引用 (> text)
+            html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+            
+            // 8. 处理水平线 (---, ***)
+            html = html.replace(/^\s*[-*_]{3,}\s*$/gim, '<hr>');
+            
+            // 9. 处理无序列表 (* item, - item, + item)
+            html = html.replace(/^\s*[*+-] (.*$)/gim, '<li>$1</li>');
+            html = html.replace(/<li>.*<\/li>(?:\n<li>.*<\/li>)*/g, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // 10. 处理有序列表 (1. item, 2. item)
+            html = html.replace(/^\s*\d+\. (.*$)/gim, '<li>$1</li>');
+            html = html.replace(/<li>.*<\/li>(?:\n<li>.*<\/li>)*/g, function(match) {
+                return '<ol>' + match + '</ol>';
+            });
+            
+            // 11. 处理链接 ([text](url))
+            html = html.replace(/\[([^\[]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+            
+            // 12. 处理图片 (![alt](src))
+            html = html.replace(/!\[([^\[]+)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+            
+            // 13. 处理换行 (两个空格或反斜杠结尾)
+            html = html.replace(/  \n/g, '<br>');
+            html = html.replace(/\\\n/g, '<br>');
+            
+            // 14. 处理段落（将连续文本包装在<p>标签中）
+            html = html.replace(/^\s*(\n)?(.+)(\n)?\s*$/gim, function(match, p1, p2) {
+                if (/^<(h\d|ul|ol|li|blockquote|pre|code|hr)/.test(p2.trim())) {
+                    return p2;
+                }
+                return '<p>' + p2 + '</p>';
+            });
+            
+            // 清理多余的段落标签
+            html = html.replace(/<\/p>\s*<p>/g, '\n');
+            
+            return html.trim();
+        }
+
+        // 测试用例
+        const testCases = [
+            {
+                name: '标题测试',
+                markdown: '# 一级标题\n## 二级标题\n### 三级标题',
+                expected: '<h1>一级标题</h1>\n<h2>二级标题</h2>\n<h3>三级标题</h3>'
+            },
+            {
+                name: '粗体和斜体测试',
+                markdown: '这是**粗体**文字和*斜体*文字',
+                expected: '<p>这是<strong>粗体</strong>文字和<em>斜体</em>文字</p>'
+            },
+            {
+                name: '链接测试',
+                markdown: '访问[百度](https://www.baidu.com)',
+                expected: '<p>访问<a href="https://www.baidu.com">百度</a></p>'
+            }
+        ];
+
+        // 运行测试
+        const resultsContainer = document.getElementById('test-results');
+        let passed = 0;
+        let failed = 0;
+
+        testCases.forEach((testCase, index) => {
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-case';
+            
+            try {
+                const result = markdownToHtml(testCase.markdown);
+                
+                // 简单比较（去除空白字符差异）
+                const normalizedResult = result.replace(/\s+/g, ' ').trim();
+                const normalizedExpected = testCase.expected.replace(/\s+/g, ' ').trim();
+                
+                const isPassed = normalizedResult === normalizedExpected;
+                
+                if (isPassed) {
+                    testDiv.classList.add('passed');
+                    passed++;
+                } else {
+                    testDiv.classList.add('failed');
+                    failed++;
+                }
+                
+                testDiv.innerHTML = `
+                    <h3>测试 ${index + 1}: ${testCase.name} - ${isPassed ? '✅ 通过' : '❌ 失败'}</h3>
+                    <div class="markdown"><strong>输入Markdown:</strong><br>${testCase.markdown.replace(/\n/g, '<br>')}</div>
+                    <div class="html"><strong>输出HTML:</strong><br>${result.replace(/\n/g, '<br>')}</div>
+                    <div class="expected"><strong>期望HTML:</strong><br>${testCase.expected.replace(/\n/g, '<br>')}</div>
+                `;
+                
+            } catch (error) {
+                testDiv.classList.add('failed');
+                failed++;
+                testDiv.innerHTML = `
+                    <h3>测试 ${index + 1}: ${testCase.name} - ❌ 失败（错误）</h3>
+                    <div class="markdown"><strong>输入Markdown:</strong><br>${testCase.markdown.replace(/\n/g, '<br>')}</div>
+                    <div><strong>错误信息:</strong> ${error.message}</div>
+                `;
+            }
+            
+            resultsContainer.appendChild(testDiv);
+        });
+
+        // 显示总结果
+        const summary = document.createElement('div');
+        summary.innerHTML = `
+            <h2>测试结果: ${passed} 通过, ${failed} 失败</h2>
+            <p>总测试用例: ${testCases.length}</p>
+        `;
+        resultsContainer.insertBefore(summary, resultsContainer.firstChild);
+
+        // 示例使用
+        const exampleDiv = document.createElement('div');
+        exampleDiv.className = 'test-case';
+        exampleDiv.innerHTML = `
+            <h2>示例使用</h2>
+            <div class="markdown">
+                <strong>示例Markdown:</strong><br>
+                # 欢迎使用Markdown转换器<br>
+                <br>
+                这是一个**示例**文本，包含*斜体*和[链接](https://example.com)。<br>
+                <br>
+                ## 功能特点<br>
+                <br>
+                - 支持标题<br>
+                - 支持列表<br>
+                - 支持代码块<br>
+                - 支持引用<br>
+                <br>
+                \`\`\`javascript<br>
+                function example() {<br>
+                    return "Hello World!";<br>
+                }<br>
+                \`\`\`
+            </div>
+        `;
+        
+        const exampleMarkdown = `# 欢迎使用Markdown转换器
+
+这是一个**示例**文本，包含*斜体*和[链接](https://example.com)。
+
+## 功能特点
+
+- 支持标题
+- 支持列表
+- 支持代码块
+- 支持引用
+
+\`\`\`javascript
+function example() {
+    return "Hello World!";
+}
+\`\`\``;
+        
+        try {
+            const exampleResult = markdownToHtml(exampleMarkdown);
+            exampleDiv.innerHTML += `
+                <div class="html">
+                    <strong>转换结果:</strong><br>
+                    ${exampleResult.replace(/\n/g, '<br>')}
+                </div>
+                <div>
+                    <strong>渲染效果:</strong>
+                    <div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+                        ${exampleResult}
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            exampleDiv.innerHTML += `<div><strong>转换错误:</strong> ${error.message}</div>`;
+        }
+        
+        resultsContainer.appendChild(exampleDiv);
+    </script>
+</body>
+</html>
